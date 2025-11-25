@@ -29,7 +29,9 @@ logs/
 *.log
 
 # IDEs y editores
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
