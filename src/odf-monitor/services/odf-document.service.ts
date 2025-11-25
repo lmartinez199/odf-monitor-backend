@@ -40,10 +40,7 @@ export class OdfDocumentService {
     filters?: FindDocumentsFilters,
     pagination?: PaginationOptions,
   ): Promise<OdfDocumentListResponseDto> {
-    const { documents, total } = await this.repository.findAll(
-      filters,
-      pagination,
-    );
+    const { documents, total } = await this.repository.findAll(filters, pagination);
 
     return {
       documents: documents.map((doc) => this.toDto(doc)),
@@ -61,17 +58,12 @@ export class OdfDocumentService {
     return this.toDto(document);
   }
 
-  async findByDocumentCode(
-    documentCode: string,
-  ): Promise<OdfDocumentResponseDto[]> {
+  async findByDocumentCode(documentCode: string): Promise<OdfDocumentResponseDto[]> {
     const documents = await this.repository.findByDocumentCode(documentCode);
     return documents.map((doc) => this.toDto(doc));
   }
 
-  async compareDocuments(
-    document1Id: string,
-    document2Id: string,
-  ): Promise<DocumentComparisonDto> {
+  async compareDocuments(document1Id: string, document2Id: string): Promise<DocumentComparisonDto> {
     const doc1 = await this.repository.findById(document1Id);
     const doc2 = await this.repository.findById(document2Id);
 
@@ -119,8 +111,8 @@ export class OdfDocumentService {
 
     if (isXml1 && isXml2) {
       try {
-        const parsed1 = this.xmlParser.parse(doc1.content);
-        const parsed2 = this.xmlParser.parse(doc2.content);
+        const parsed1: unknown = this.xmlParser.parse(doc1.content);
+        const parsed2: unknown = this.xmlParser.parse(doc2.content);
         differences.content = {
           type: "xml",
           parsed1,
@@ -128,7 +120,7 @@ export class OdfDocumentService {
           raw1: doc1.content,
           raw2: doc2.content,
         };
-      } catch (error) {
+      } catch {
         differences.content = {
           type: "xml",
           error: "Error al parsear XML",
@@ -163,13 +155,17 @@ export class OdfDocumentService {
       try {
         return this.xmlParser.parse(document.content);
       } catch (error) {
-        throw new Error(`Error al parsear XML: ${error instanceof Error ? error.message : "Error desconocido"}`);
+        throw new Error(
+          `Error al parsear XML: ${error instanceof Error ? error.message : "Error desconocido"}`,
+        );
       }
     } else {
       try {
         return JSON.parse(document.content);
       } catch (error) {
-        throw new Error(`Error al parsear JSON: ${error instanceof Error ? error.message : "Error desconocido"}`);
+        throw new Error(
+          `Error al parsear JSON: ${error instanceof Error ? error.message : "Error desconocido"}`,
+        );
       }
     }
   }
@@ -183,7 +179,8 @@ export class OdfDocumentService {
       throw new NotFoundException(`Documento con ID ${documentId} no encontrado`);
     }
 
-    const url = backendUrl || this.configService.get<string>("BACKEND_URL") || "http://localhost:3010";
+    const url =
+      backendUrl || this.configService.get<string>("BACKEND_URL") || "http://localhost:3010";
     const endpoint = `${url}/api/odf/form`;
 
     try {
@@ -201,16 +198,32 @@ export class OdfDocumentService {
       });
 
       // Enviar el documento al backend principal para re-procesamiento
-      const response = await this.httpService.axiosRef.post(endpoint, formData, {
-        headers: {
-          ...formData.getHeaders(),
-        },
-        timeout: 30000, // 30 segundos
-      }).catch((error) => {
-        throw new Error(
-          `Error al enviar documento al backend: ${error.response?.data?.message || error.message}`,
-        );
-      });
+      const response = await this.httpService.axiosRef
+        .post(endpoint, formData, {
+          headers: {
+            ...formData.getHeaders(),
+          },
+          timeout: 30000, // 30 segundos
+        })
+        .catch((error: unknown) => {
+          const errorMessage =
+            error &&
+            typeof error === "object" &&
+            "response" in error &&
+            error.response &&
+            typeof error.response === "object" &&
+            "data" in error.response &&
+            error.response.data &&
+            typeof error.response.data === "object" &&
+            "message" in error.response.data &&
+            typeof error.response.data.message === "string"
+              ? error.response.data.message
+              : error instanceof Error
+                ? error.message
+                : "Error desconocido";
+
+          throw new Error(`Error al enviar documento al backend: ${errorMessage}`);
+        });
 
       return {
         success: true,
@@ -247,4 +260,3 @@ export class OdfDocumentService {
     };
   }
 }
-
