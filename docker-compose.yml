@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: odf-monitor-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: grs-backend
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - odf-monitor-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odf-monitor-backend
+    restart: unless-stopped
+    ports:
+      - "3011:3011"
+    environment:
+      PORT: 3011
+      NODE_ENV: production
+      GLOBAL_PREFIX: api
+      MONGODB_URI: mongodb://mongodb:27017/grs-backend
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - mongodb
+    networks:
+      - odf-monitor-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  odf-monitor-network:
+    driver: bridge
+
