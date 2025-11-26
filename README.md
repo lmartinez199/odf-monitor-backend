@@ -9,7 +9,6 @@ Backend para monitoreo y visualización de documentos ODF.
 - Obtener contenido parseado (XML a JSON)
 - Comparar dos documentos
 - Buscar documentos por código
-- Re-ejecutar procesamiento de documentos
 
 ## Instalación
 
@@ -54,6 +53,3 @@ http://localhost:3011/api/docs
 - `GET /api/odf-documents/:id/parsed` - Obtener contenido parseado
 - `GET /api/odf-documents/document-code/:documentCode` - Buscar por código
 - `GET /api/odf-documents/compare/:id1/:id2` - Comparar dos documentos
-- `POST /api/odf-documents/:id/reprocess` - Re-ejecutar procesamiento
-
-

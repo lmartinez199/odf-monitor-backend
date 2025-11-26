@@ -56,13 +56,19 @@ export class OdfDocumentListResponseDto {
 }
 
 export class DocumentComparisonDto {
-  @ApiProperty({ description: "ID del documento 1" })
-  document1Id!: string;
+  @ApiProperty({
+    description: "Documento 1 con contenido XML original",
+  })
+  document1!: {
+    id: string;
+    xmlContent: string;
+  };
 
-  @ApiProperty({ description: "ID del documento 2" })
-  document2Id!: string;
-
-  @ApiProperty({ description: "Diferencias encontradas", type: Object })
-  differences!: Record<string, unknown>;
+  @ApiProperty({
+    description: "Documento 2 con contenido XML original",
+  })
+  document2!: {
+    id: string;
+    xmlContent: string;
+  };
 }
-

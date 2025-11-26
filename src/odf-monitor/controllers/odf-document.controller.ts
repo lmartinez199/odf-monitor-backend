@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Query,
-  Body,
-  HttpCode,
-  HttpStatus,
-} from "@nestjs/common";
+import { Controller, Get, Param, Query, HttpCode, HttpStatus } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
 
 import { OdfDocumentService } from "../services/odf-document.service";
@@ -16,10 +7,6 @@ import {
   OdfDocumentListResponseDto,
   DocumentComparisonDto,
 } from "../dto/odf-document-response.dto";
-import {
-  ReprocessDocumentDto,
-  ReprocessDocumentResponseDto,
-} from "../dto/reprocess-document.dto";
 
 @ApiTags("ODF Documents")
 @Controller("odf-documents")
@@ -39,10 +26,30 @@ export class OdfDocumentController {
   })
   @ApiQuery({ name: "page", required: false, type: Number, description: "Número de página" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "Tamaño de página" })
-  @ApiQuery({ name: "competitionCode", required: false, type: String, description: "Filtrar por código de competencia" })
-  @ApiQuery({ name: "documentCode", required: false, type: String, description: "Filtrar por código de documento" })
-  @ApiQuery({ name: "documentType", required: false, type: String, description: "Filtrar por tipo de documento" })
-  @ApiQuery({ name: "documentSubtype", required: false, type: String, description: "Filtrar por subtipo de documento" })
+  @ApiQuery({
+    name: "competitionCode",
+    required: false,
+    type: String,
+    description: "Filtrar por código de competencia",
+  })
+  @ApiQuery({
+    name: "documentCode",
+    required: false,
+    type: String,
+    description: "Filtrar por código de documento",
+  })
+  @ApiQuery({
+    name: "documentType",
+    required: false,
+    type: String,
+    description: "Filtrar por tipo de documento",
+  })
+  @ApiQuery({
+    name: "documentSubtype",
+    required: false,
+    type: String,
+    description: "Filtrar por subtipo de documento",
+  })
   async findAll(
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
@@ -126,17 +133,23 @@ export class OdfDocumentController {
   @Get("compare/:id1/:id2")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Comparar dos documentos",
-    description: "Compara dos documentos ODF y muestra las diferencias",
+    summary: "Obtener documentos XML para comparación",
+    description:
+      "Obtiene los dos documentos XML originales (como string) para mostrar en un editor XML y comparación visual en el frontend. Solo soporta documentos XML.",
   })
   @ApiResponse({
     status: 200,
-    description: "Comparación realizada exitosamente",
+    description: "Documentos XML obtenidos exitosamente para comparación",
     type: DocumentComparisonDto,
   })
   @ApiResponse({
     status: 404,
     description: "Uno o ambos documentos no encontrados",
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Uno o ambos documentos no son XML. La comparación solo está disponible para documentos XML.",
   })
   async compareDocuments(
     @Param("id1") id1: string,
@@ -144,27 +157,4 @@ export class OdfDocumentController {
   ): Promise<DocumentComparisonDto> {
     return this.service.compareDocuments(id1, id2);
   }
-
-  @Post(":id/reprocess")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Re-ejecutar procesamiento de documento",
-    description: "Re-ejecuta el procesamiento de un documento ODF en el backend principal",
-  })
-  @ApiResponse({
-    status: 200,
-    description: "Re-ejecución iniciada",
-    type: ReprocessDocumentResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: "Documento no encontrado",
-  })
-  async reprocessDocument(
-    @Param("id") id: string,
-    @Body() dto?: ReprocessDocumentDto,
-  ): Promise<ReprocessDocumentResponseDto> {
-    return this.service.reprocessDocument(id, dto?.backendUrl);
-  }
 }
-
