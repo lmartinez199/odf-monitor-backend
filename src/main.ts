@@ -1,15 +1,18 @@
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 import { AppModule } from "./app.module";
+import { ConfigService } from "./config";
+import { logApplicationInfo } from "./shared/utils/app-logger";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
   // Habilitar CORS para el frontend
   app.enableCors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: configService.get("FRONTEND_URL"),
     credentials: true,
   });
 
@@ -21,23 +24,39 @@ async function bootstrap() {
     }),
   );
 
-  const globalPrefix = process.env.GLOBAL_PREFIX || "api";
+  const globalPrefix = configService.get("GLOBAL_PREFIX");
   app.setGlobalPrefix(globalPrefix);
 
-  // Configurar Swagger
-  const config = new DocumentBuilder()
-    .setTitle("ODF Monitor API")
-    .setDescription("API para monitoreo y visualización de documentos ODF")
-    .setVersion("1.0")
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api/docs", app, document);
+  // Configurar Swagger solo en desarrollo
+  let shouldDisplaySwagger = false;
+  if (configService.isDevelopment) {
+    const config = new DocumentBuilder()
+      .setTitle("ODF Monitor API")
+      .setDescription("API para monitoreo y visualización de documentos ODF")
+      .setVersion("1.0")
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup("docs", app, document);
+    shouldDisplaySwagger = true;
+  }
 
-  const port = process.env.PORT || 3011;
-  await app.listen(port);
-  console.log(`🚀 ODF Monitor Backend ejecutándose en: http://localhost:${port}/${globalPrefix}`);
-  console.log(`📚 Swagger disponible en: http://localhost:${port}/api/docs`);
+  await app.listen(configService.get("PORT"));
+
+  // Log application information
+  const serverUrl = await app.getUrl();
+  logApplicationInfo({
+    baseUrl: serverUrl.toString(),
+    globalPrefix,
+    port: configService.get("PORT"),
+    environment: configService.get("NODE_ENV"),
+    mongodbUri: configService.get("MONGODB_URI"),
+    shouldDisplaySwagger,
+  });
 }
 
-void bootstrap();
+bootstrap().catch((error) => {
+  const logger = new Logger("NestApplication");
+  logger.error("Failed to start application:", error);
+  process.exit(1);
+});
