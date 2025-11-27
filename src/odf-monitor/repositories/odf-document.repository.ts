@@ -9,6 +9,7 @@ export interface FindDocumentsFilters {
   documentCode?: string;
   documentType?: string;
   documentSubtype?: string;
+  discipline?: string; // Primeros 3 caracteres del documentCode (ej: "MTI")
   dateFrom?: Date;
   dateTo?: Date;
 }
@@ -34,7 +35,14 @@ export class OdfDocumentRepository {
       query.competitionCode = filters.competitionCode;
     }
 
-    if (filters?.documentCode) {
+    if (filters?.discipline) {
+      // Filtrar por disciplina (primeros 3 caracteres del documentCode)
+      // Si se proporciona discipline, tiene prioridad sobre documentCode
+      // Escapar caracteres especiales de regex para evitar errores
+      const escapedDiscipline = filters.discipline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.documentCode = new RegExp(`^${escapedDiscipline}`, "i");
+    } else if (filters?.documentCode) {
+      // Si no hay discipline, usar el filtro de documentCode normal
       query.documentCode = new RegExp(filters.documentCode, "i");
     }
 
@@ -96,6 +104,56 @@ export class OdfDocumentRepository {
   async findByContentHash(contentHash: string): Promise<OdfDocumentModel | null> {
     const document = await this.model.findOne({ contentHash }).exec();
     return document ? this.toModel(document) : null;
+  }
+
+  /**
+   * Obtiene los códigos de disciplinas únicos que tienen documentos XML asociados
+   * Extrae los primeros 3 caracteres del documentCode de documentos que son XML
+   * @returns Array de códigos de disciplinas únicos (ej: ["ATH", "MTI", "BOX"])
+   */
+  async findDisciplinesWithDocuments(): Promise<string[]> {
+    // Agregación optimizada: usa regex para filtrar XML (más eficiente que $substr en contenido grande)
+    // MongoDB puede usar índices de texto si existen, y regex es más rápido para strings grandes
+    const result = await this.model
+      .aggregate<{ _id: string }>([
+        {
+          $match: {
+            // Filtrar solo documentos XML usando regex (más eficiente)
+            // Solo busca al inicio del string, no procesa todo el contenido
+            content: {
+              $regex: /^(<\?xml|<OdfBody)/,
+            },
+          },
+        },
+        {
+          $project: {
+            // Solo proyectar lo necesario: los primeros 3 caracteres del documentCode
+            discipline: {
+              $toUpper: {
+                $substr: ["$documentCode", 0, 3],
+              },
+            },
+          },
+        },
+        {
+          $match: {
+            // Filtrar solo códigos válidos de 3 caracteres
+            discipline: { $regex: /^[A-Z]{3}$/ },
+          },
+        },
+        {
+          $group: {
+            _id: "$discipline",
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+      ])
+      .allowDiskUse(true) // Permitir usar disco si la agregación es grande
+      .exec();
+
+    return result.map((item) => item._id);
   }
 
   private toModel(entity: OdfDocumentDocument): OdfDocumentModel {

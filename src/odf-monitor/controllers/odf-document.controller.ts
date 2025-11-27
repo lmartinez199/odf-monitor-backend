@@ -6,6 +6,7 @@ import {
   OdfDocumentResponseDto,
   OdfDocumentListResponseDto,
   DocumentComparisonDto,
+  DisciplineListResponseDto,
 } from "../dto/odf-document-response.dto";
 
 @ApiTags("ODF Documents")
@@ -50,6 +51,13 @@ export class OdfDocumentController {
     type: String,
     description: "Filtrar por subtipo de documento",
   })
+  @ApiQuery({
+    name: "discipline",
+    required: false,
+    type: String,
+    description:
+      "Filtrar por disciplina (código de 3 caracteres, ej: ATH, MTI). Debe existir en la colección discipline-settings.",
+  })
   async findAll(
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
@@ -57,12 +65,14 @@ export class OdfDocumentController {
     @Query("documentCode") documentCode?: string,
     @Query("documentType") documentType?: string,
     @Query("documentSubtype") documentSubtype?: string,
+    @Query("discipline") discipline?: string,
   ): Promise<OdfDocumentListResponseDto> {
     const filters = {
       ...(competitionCode && { competitionCode }),
       ...(documentCode && { documentCode }),
       ...(documentType && { documentType }),
       ...(documentSubtype && { documentSubtype }),
+      ...(discipline && { discipline }),
     };
 
     const pagination =
@@ -76,41 +86,21 @@ export class OdfDocumentController {
     return this.service.findAll(filters, pagination);
   }
 
-  @Get(":id")
+  @Get("disciplines/list")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Obtener documento por ID",
-    description: "Obtiene un documento ODF específico por su ID",
+    summary: "Listar disciplinas disponibles",
+    description:
+      "Obtiene una lista de todos los códigos de disciplinas disponibles en la base de datos",
   })
   @ApiResponse({
     status: 200,
-    description: "Documento obtenido exitosamente",
-    type: OdfDocumentResponseDto,
+    description: "Lista de disciplinas obtenida exitosamente",
+    type: DisciplineListResponseDto,
   })
-  @ApiResponse({
-    status: 404,
-    description: "Documento no encontrado",
-  })
-  async findById(@Param("id") id: string): Promise<OdfDocumentResponseDto> {
-    return this.service.findById(id);
-  }
-
-  @Get(":id/parsed")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Obtener contenido parseado del documento",
-    description: "Obtiene el contenido del documento parseado (XML a JSON o JSON)",
-  })
-  @ApiResponse({
-    status: 200,
-    description: "Contenido parseado obtenido exitosamente",
-  })
-  @ApiResponse({
-    status: 404,
-    description: "Documento no encontrado",
-  })
-  async getParsedContent(@Param("id") id: string): Promise<unknown> {
-    return this.service.getParsedContent(id);
+  async getDisciplines(): Promise<DisciplineListResponseDto> {
+    const disciplines = await this.service.getAllDisciplines();
+    return { disciplines };
   }
 
   @Get("document-code/:documentCode")
@@ -156,5 +146,42 @@ export class OdfDocumentController {
     @Param("id2") id2: string,
   ): Promise<DocumentComparisonDto> {
     return this.service.compareDocuments(id1, id2);
+  }
+
+  @Get(":id/parsed")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Obtener contenido parseado del documento",
+    description: "Obtiene el contenido del documento parseado (XML a JSON o JSON)",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Contenido parseado obtenido exitosamente",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Documento no encontrado",
+  })
+  async getParsedContent(@Param("id") id: string): Promise<unknown> {
+    return this.service.getParsedContent(id);
+  }
+
+  @Get(":id")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Obtener documento por ID",
+    description: "Obtiene un documento ODF específico por su ID",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Documento obtenido exitosamente",
+    type: OdfDocumentResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Documento no encontrado",
+  })
+  async findById(@Param("id") id: string): Promise<OdfDocumentResponseDto> {
+    return this.service.findById(id);
   }
 }

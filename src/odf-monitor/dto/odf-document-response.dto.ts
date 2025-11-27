@@ -72,3 +72,12 @@ export class DocumentComparisonDto {
     xmlContent: string;
   };
 }
+
+export class DisciplineListResponseDto {
+  @ApiProperty({
+    description: "Lista de códigos de disciplinas disponibles",
+    type: [String],
+    example: ["ATH", "BK3", "BOX", "CML"],
+  })
+  disciplines!: string[];
+}

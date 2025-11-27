@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { XMLParser } from "fast-xml-parser";
 
 import { OdfDocumentRepository } from "../repositories/odf-document.repository";
+import { DisciplineSettingsRepository } from "../repositories/discipline-settings.repository";
 import { OdfDocumentModel } from "../models/odf-document.model";
 import {
   OdfDocumentListResponseDto,
@@ -17,7 +18,10 @@ import type {
 export class OdfDocumentService {
   private readonly xmlParser: XMLParser;
 
-  constructor(private readonly repository: OdfDocumentRepository) {
+  constructor(
+    private readonly repository: OdfDocumentRepository,
+    private readonly disciplineRepository: DisciplineSettingsRepository,
+  ) {
     this.xmlParser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: "@_",
@@ -33,6 +37,16 @@ export class OdfDocumentService {
     filters?: FindDocumentsFilters,
     pagination?: PaginationOptions,
   ): Promise<OdfDocumentListResponseDto> {
+    // Validar que la disciplina existe si se proporciona
+    if (filters?.discipline) {
+      const disciplineExists = await this.disciplineRepository.exists(filters.discipline);
+      if (!disciplineExists) {
+        throw new BadRequestException(
+          `La disciplina "${filters.discipline}" no existe en la base de datos.`,
+        );
+      }
+    }
+
     const { documents, total } = await this.repository.findAll(filters, pagination);
 
     return {
@@ -126,6 +140,29 @@ export class OdfDocumentService {
   private isXml(content: string): boolean {
     const trimmed = content.trim();
     return trimmed.startsWith("<?xml") || trimmed.startsWith("<OdfBody");
+  }
+
+  /**
+   * Obtiene solo las disciplinas que tienen documentos XML asociados
+   * Valida que las disciplinas existan en la colección discipline-settings
+   * Optimizado: usa una sola consulta para validar todas las disciplinas
+   */
+  async getAllDisciplines(): Promise<string[]> {
+    // Obtener disciplinas que tienen documentos XML
+    const disciplinesWithDocuments = await this.repository.findDisciplinesWithDocuments();
+
+    if (disciplinesWithDocuments.length === 0) {
+      return [];
+    }
+
+    // Validar todas las disciplinas en una sola consulta (optimización)
+    const existingDisciplines =
+      await this.disciplineRepository.findExistingDisciplines(disciplinesWithDocuments);
+
+    // Filtrar solo las que existen y ordenar
+    return disciplinesWithDocuments
+      .filter((discipline) => existingDisciplines.has(discipline))
+      .sort();
   }
 
   private toDto(model: OdfDocumentModel): OdfDocumentResponseDto {
