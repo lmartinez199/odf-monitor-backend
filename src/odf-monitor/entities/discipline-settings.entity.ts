@@ -69,3 +69,7 @@ export class DisciplineSettingsEntity {
 }
 
 export const DisciplineSettingsSchema = SchemaFactory.createForClass(DisciplineSettingsEntity);
+
+// Índices para optimizar búsquedas de disciplinas
+DisciplineSettingsSchema.index({ name: 1 }); // Para búsqueda rápida por nombre
+DisciplineSettingsSchema.index({ "metadata.discipline": 1 }); // Para búsqueda por metadata.discipline

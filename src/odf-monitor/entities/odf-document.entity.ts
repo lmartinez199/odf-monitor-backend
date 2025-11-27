@@ -48,6 +48,11 @@ export class OdfDocumentEntity {
   contentHash?: string;
 }
 
-export const OdfDocumentSchema =
-  SchemaFactory.createForClass(OdfDocumentEntity);
+export const OdfDocumentSchema = SchemaFactory.createForClass(OdfDocumentEntity);
 
+// Índices compuestos para optimizar consultas frecuentes
+OdfDocumentSchema.index({ documentCode: 1, date: -1 }); // Para filtros por código y ordenamiento por fecha
+OdfDocumentSchema.index({ documentCode: 1 }); // Para búsquedas por disciplina (regex con prefijo)
+OdfDocumentSchema.index({ competitionCode: 1, documentType: 1, date: -1 }); // Para filtros combinados
+OdfDocumentSchema.index({ documentType: 1, documentSubtype: 1 }); // Para filtros por tipo y subtipo
+OdfDocumentSchema.index({ date: -1 }); // Para ordenamiento y rangos de fechas

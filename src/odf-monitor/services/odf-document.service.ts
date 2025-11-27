@@ -17,6 +17,8 @@ import type {
 @Injectable()
 export class OdfDocumentService {
   private readonly xmlParser: XMLParser;
+  private disciplinesCache?: { data: string[]; expiresAt: number };
+  private readonly DISCIPLINES_CACHE_TTL = 60 * 60 * 1000; // 1 hora en milisegundos
 
   constructor(
     private readonly repository: OdfDocumentRepository,
@@ -146,12 +148,24 @@ export class OdfDocumentService {
    * Obtiene solo las disciplinas que tienen documentos XML asociados
    * Valida que las disciplinas existan en la colección discipline-settings
    * Optimizado: usa una sola consulta para validar todas las disciplinas
+   * Con cache de 1 hora para mejorar el rendimiento
    */
   async getAllDisciplines(): Promise<string[]> {
+    // Verificar si hay cache válido
+    const now = Date.now();
+    if (this.disciplinesCache && this.disciplinesCache.expiresAt > now) {
+      return this.disciplinesCache.data;
+    }
+
     // Obtener disciplinas que tienen documentos XML
     const disciplinesWithDocuments = await this.repository.findDisciplinesWithDocuments();
 
     if (disciplinesWithDocuments.length === 0) {
+      // Cachear resultado vacío también
+      this.disciplinesCache = {
+        data: [],
+        expiresAt: now + this.DISCIPLINES_CACHE_TTL,
+      };
       return [];
     }
 
@@ -160,9 +174,17 @@ export class OdfDocumentService {
       await this.disciplineRepository.findExistingDisciplines(disciplinesWithDocuments);
 
     // Filtrar solo las que existen y ordenar
-    return disciplinesWithDocuments
+    const validDisciplines = disciplinesWithDocuments
       .filter((discipline) => existingDisciplines.has(discipline))
       .sort();
+
+    // Guardar en cache
+    this.disciplinesCache = {
+      data: validDisciplines,
+      expiresAt: now + this.DISCIPLINES_CACHE_TTL,
+    };
+
+    return validDisciplines;
   }
 
   private toDto(model: OdfDocumentModel): OdfDocumentResponseDto {
