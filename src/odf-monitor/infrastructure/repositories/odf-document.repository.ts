@@ -2,7 +2,8 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 
 import { OdfDocumentDocument, OdfDocumentEntity } from "../entities/odf-document.entity";
-import { OdfDocumentModel } from "../models/odf-document.model";
+import { OdfDocumentModel } from "../../domain/models/odf-document.model";
+import { OdfDocumentMapper } from "../../application/mappers/odf-document.mapper";
 
 export interface FindDocumentsFilters {
   competitionCode?: string;
@@ -23,6 +24,7 @@ export class OdfDocumentRepository {
   constructor(
     @InjectModel(OdfDocumentEntity.name)
     private readonly model: Model<OdfDocumentDocument>,
+    private readonly mapper: OdfDocumentMapper,
   ) {}
 
   async findAll(
@@ -80,14 +82,14 @@ export class OdfDocumentRepository {
     const documents = await queryBuilder.exec();
 
     return {
-      documents: documents.map((doc) => this.toModel(doc)),
+      documents: this.mapper.entityToModelArray(documents),
       total,
     };
   }
 
   async findById(id: string): Promise<OdfDocumentModel | null> {
     const document = await this.model.findById(id).exec();
-    return document ? this.toModel(document) : null;
+    return document ? this.mapper.entityToModel(document) : null;
   }
 
   async findByDocumentCode(documentCode: string): Promise<OdfDocumentModel[]> {
@@ -98,12 +100,12 @@ export class OdfDocumentRepository {
       .sort({ date: -1 })
       .exec();
 
-    return documents.map((doc) => this.toModel(doc));
+    return this.mapper.entityToModelArray(documents);
   }
 
   async findByContentHash(contentHash: string): Promise<OdfDocumentModel | null> {
     const document = await this.model.findOne({ contentHash }).exec();
-    return document ? this.toModel(document) : null;
+    return document ? this.mapper.entityToModel(document) : null;
   }
 
   /**
@@ -154,28 +156,5 @@ export class OdfDocumentRepository {
       .exec();
 
     return result.map((item) => item._id);
-  }
-
-  private toModel(entity: OdfDocumentDocument): OdfDocumentModel {
-    const entityWithTimestamps = entity as OdfDocumentDocument & {
-      createdAt?: Date;
-      updatedAt?: Date;
-    };
-
-    return new OdfDocumentModel({
-      _id: entity._id.toString(),
-      competitionCode: entity.competitionCode,
-      documentCode: entity.documentCode,
-      documentType: entity.documentType,
-      documentSubtype: entity.documentSubtype,
-      version: entity.version,
-      date: entity.date,
-      content: entity.content,
-      resultStatus: entity.resultStatus,
-      unitCodes: entity.unitCodes,
-      contentHash: entity.contentHash,
-      createdAt: entityWithTimestamps.createdAt,
-      updatedAt: entityWithTimestamps.updatedAt,
-    });
   }
 }

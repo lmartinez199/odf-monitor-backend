@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, HttpCode, HttpStatus } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
 
-import { OdfDocumentService } from "../services/odf-document.service";
+import { OdfDocumentService } from "../../application/services/odf-document.service";
 import {
   OdfDocumentResponseDto,
   OdfDocumentListResponseDto,

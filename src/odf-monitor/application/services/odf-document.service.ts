@@ -1,18 +1,18 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { XMLParser } from "fast-xml-parser";
 
-import { OdfDocumentRepository } from "../repositories/odf-document.repository";
-import { DisciplineSettingsRepository } from "../repositories/discipline-settings.repository";
-import { OdfDocumentModel } from "../models/odf-document.model";
+import { OdfDocumentRepository } from "../../infrastructure/repositories/odf-document.repository";
+import { DisciplineSettingsRepository } from "../../infrastructure/repositories/discipline-settings.repository";
+import { OdfDocumentMapper } from "../mappers/odf-document.mapper";
 import {
   OdfDocumentListResponseDto,
   OdfDocumentResponseDto,
   DocumentComparisonDto,
-} from "../dto/odf-document-response.dto";
+} from "../../presentation/dto/odf-document-response.dto";
 import type {
   FindDocumentsFilters,
   PaginationOptions,
-} from "../repositories/odf-document.repository";
+} from "../../infrastructure/repositories/odf-document.repository";
 
 @Injectable()
 export class OdfDocumentService {
@@ -23,6 +23,7 @@ export class OdfDocumentService {
   constructor(
     private readonly repository: OdfDocumentRepository,
     private readonly disciplineRepository: DisciplineSettingsRepository,
+    private readonly mapper: OdfDocumentMapper,
   ) {
     this.xmlParser = new XMLParser({
       ignoreAttributes: false,
@@ -52,7 +53,7 @@ export class OdfDocumentService {
     const { documents, total } = await this.repository.findAll(filters, pagination);
 
     return {
-      documents: documents.map((doc) => this.toDto(doc)),
+      documents: this.mapper.modelToDtoArray(documents),
       total,
       page: pagination?.page || 1,
       pageSize: pagination?.pageSize || documents.length,
@@ -64,12 +65,12 @@ export class OdfDocumentService {
     if (!document) {
       throw new NotFoundException(`Documento con ID ${id} no encontrado`);
     }
-    return this.toDto(document);
+    return this.mapper.modelToDto(document);
   }
 
   async findByDocumentCode(documentCode: string): Promise<OdfDocumentResponseDto[]> {
     const documents = await this.repository.findByDocumentCode(documentCode);
-    return documents.map((doc) => this.toDto(doc));
+    return this.mapper.modelToDtoArray(documents);
   }
 
   async compareDocuments(document1Id: string, document2Id: string): Promise<DocumentComparisonDto> {
@@ -185,23 +186,5 @@ export class OdfDocumentService {
     };
 
     return validDisciplines;
-  }
-
-  private toDto(model: OdfDocumentModel): OdfDocumentResponseDto {
-    return {
-      id: model._id,
-      competitionCode: model.competitionCode,
-      documentCode: model.documentCode,
-      documentType: model.documentType,
-      documentSubtype: model.documentSubtype,
-      version: model.version,
-      date: model.date,
-      content: model.content,
-      resultStatus: model.resultStatus,
-      unitCodes: model.unitCodes,
-      contentHash: model.contentHash,
-      createdAt: model.createdAt || model.date,
-      updatedAt: model.updatedAt || model.date,
-    };
   }
 }
